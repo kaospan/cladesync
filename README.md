@@ -7,8 +7,8 @@ A music-social platform built with Vite, React, TypeScript, shadcn/ui, and Tailw
 ```sh
 git clone https://github.com/kaospan/cladesync.git
 cd cladesync
-npm install
-npm run dev
+bun install
+bun run dev
 ```
 
 Open [http://localhost:5173](http://localhost:5173).
@@ -18,8 +18,8 @@ Open [http://localhost:5173](http://localhost:5173).
 Generate deterministic fake users & posts (no external dependencies):
 
 ```sh
-npm run seed          # 400 users (60% Israeli), writes scripts/seeds.json
-npm run seed:400      # explicit 400
+bun run seed          # 400 users (60% Israeli), writes scripts/seeds.json
+bun run seed:400      # explicit 400
 node scripts/seed.js --count=10  # smoke test
 ```
 
@@ -60,9 +60,9 @@ A small floating nav appears in the bottom-right corner in dev mode.
 
 GitHub Actions runs on every push and PR:
 
-1. **Setup** — `npm ci` with Node 18
-2. **Lint** — `npm run lint`
-3. **Build** — `npm run build`
+1. **Setup** — `bun ci` with Node 18
+2. **Lint** — `bun run lint`
+3. **Build** — `bun run build`
 4. **Seed smoke test** — `node scripts/seed.js --count=10`
 5. **Deploy** (main branch only) — publishes `dist/` to GitHub Pages via `peaceiris/actions-gh-pages`
 
