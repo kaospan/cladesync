@@ -2,6 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Suspense, lazy } from "react";
 import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
 import Index from "./pages/Index";
 import Discover from "./pages/Discover";
@@ -11,6 +12,11 @@ import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import DemoFeed from "./pages/DemoFeed";
 import InvestorDashboard from "./pages/InvestorDashboard";
+
+const ArtistsPage = lazy(() => import("./pages/artists/ArtistsPage"));
+const ArtistsOnboardingPage = lazy(
+  () => import("./pages/artists/ArtistsOnboardingPage")
+);
 
 const queryClient = new QueryClient();
 
@@ -37,12 +43,34 @@ const App = () => (
           <Route path="/settings" element={<Settings />} />
           <Route path="/demo-feed" element={<DemoFeed />} />
           <Route path="/investor" element={<InvestorDashboard />} />
+          <Route
+            path="/artists"
+            element={
+              <Suspense fallback={<RouteFallback />}>
+                <ArtistsPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/artists/onboarding"
+            element={
+              <Suspense fallback={<RouteFallback />}>
+                <ArtistsOnboardingPage />
+              </Suspense>
+            }
+          />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
+);
+
+const RouteFallback = () => (
+  <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
+    <p className="text-sm text-muted-foreground">Loading page…</p>
+  </div>
 );
 
 export default App;
