@@ -5,82 +5,141 @@ on:
     branches: ["**"]
   pull_request:
     branches: ["**"]
+  # Allow maintainers to trigger the workflow manually from the Actions UI
+  workflow_dispatch:
 
 jobs:
-  setup:
-    name: Setup & Install
+  ci:
+    name: Install, Typecheck, Lint, Build & Smoke Test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Use Node.js 18
+
+      # ── Bun setup ────────────────────────────────────────────────────────────
+      - name: Set up Bun
+        id: setup-bun
+        uses: oven-sh/setup-bun@v2
+        continue-on-error: true   # fall back to Node if Bun unavailable
+
+      # ── Cache Bun dependencies (only when Bun setup succeeded) ───────────────
+      - name: Cache Bun modules
+        if: steps.setup-bun.outcome == 'success'
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lockb') }}
+          restore-keys: ${{ runner.os }}-bun-
+
+      # ── Fallback: Node 18 (used when Bun setup fails) ────────────────────────
+      - name: Set up Node.js 18 (fallback)
+        if: steps.setup-bun.outcome != 'success'
         uses: actions/setup-node@v4
         with:
           node-version: "18"
           cache: "npm"
-      - run: npm ci
 
-  lint:
-    name: Lint
-    runs-on: ubuntu-latest
-    needs: setup
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "18"
-          cache: "npm"
-      - run: npm ci
-      - run: npm run lint
+      # ── Install dependencies ──────────────────────────────────────────────────
+      - name: Install dependencies (Bun)
+        if: steps.setup-bun.outcome == 'success'
+        run: bun install --frozen-lockfile
 
-  build:
-    name: Build
-    runs-on: ubuntu-latest
-    needs: setup
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "18"
-          cache: "npm"
-      - run: npm ci
-      - run: npm run build
-      - uses: actions/upload-artifact@v4
+      - name: Install dependencies (Node fallback)
+        if: steps.setup-bun.outcome != 'success'
+        run: npm ci
+
+      # ── TypeScript typecheck ──────────────────────────────────────────────────
+      - name: Typecheck (Bun)
+        if: steps.setup-bun.outcome == 'success'
+        run: bun run typecheck
+
+      - name: Typecheck (Node fallback)
+        if: steps.setup-bun.outcome != 'success'
+        run: npm run typecheck
+
+      # ── Lint ──────────────────────────────────────────────────────────────────
+      - name: Lint (Bun)
+        if: steps.setup-bun.outcome == 'success'
+        run: bun run lint
+
+      - name: Lint (Node fallback)
+        if: steps.setup-bun.outcome != 'success'
+        run: npm run lint
+
+      # ── Build ─────────────────────────────────────────────────────────────────
+      - name: Build (Bun)
+        if: steps.setup-bun.outcome == 'success'
+        run: bun run build
+
+      - name: Build (Node fallback)
+        if: steps.setup-bun.outcome != 'success'
+        run: npm run build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
         with:
           name: dist
           path: dist/
 
-  seed-smoke-test:
-    name: Seed Smoke Test
-    runs-on: ubuntu-latest
-    needs: setup
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "18"
-          cache: "npm"
-      - run: npm ci
-      - run: node scripts/seed.js --count=10
+      # ── Smoke test: seed script ───────────────────────────────────────────────
+      - name: Seed smoke test (Bun)
+        if: steps.setup-bun.outcome == 'success'
+        run: bun run seed -- --count=10
+
+      - name: Seed smoke test (Node fallback)
+        if: steps.setup-bun.outcome != 'success'
+        run: node scripts/seed.js --count=10
 
   deploy:
     name: Deploy to GitHub Pages
     runs-on: ubuntu-latest
-    needs: build
+    needs: ci
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     permissions:
-      contents: write
+      contents: read
       pages: write
       id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+
+      - name: Set up Bun
+        id: setup-bun
+        uses: oven-sh/setup-bun@v2
+        continue-on-error: true
+
+      - name: Set up Node.js 18 (fallback)
+        if: steps.setup-bun.outcome != 'success'
+        uses: actions/setup-node@v4
         with:
           node-version: "18"
           cache: "npm"
-      - run: npm ci
-      - run: npm run build
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v4
+
+      - name: Install dependencies (Bun)
+        if: steps.setup-bun.outcome == 'success'
+        run: bun install --frozen-lockfile
+
+      - name: Install dependencies (Node fallback)
+        if: steps.setup-bun.outcome != 'success'
+        run: npm ci
+
+      - name: Build (Bun)
+        if: steps.setup-bun.outcome == 'success'
+        run: bun run build
+
+      - name: Build (Node fallback)
+        if: steps.setup-bun.outcome != 'success'
+        run: npm run build
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist
+          path: dist/
+
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4
