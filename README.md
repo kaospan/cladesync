@@ -1,4 +1,4 @@
-# Sonic Souls Sync
+# Clade Sync
 
 A music-social platform built with Vite, React, TypeScript, shadcn/ui, and Tailwind CSS.
 
