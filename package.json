@@ -17,6 +17,7 @@
     "preview": "vite preview",
     "seed": "node scripts/seed.js",
     "seed:400": "node scripts/seed.js --count=400",
+    "typecheck": "tsc --noEmit",
     "format": "npx prettier --write ."
   },
   "dependencies": {

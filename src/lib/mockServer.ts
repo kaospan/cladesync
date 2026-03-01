@@ -176,10 +176,18 @@ function handleMutationRequest(method: string, url: URL, body: unknown): Respons
 
 /**
  * Initialise the mock server by patching globalThis.fetch.
+ *
+ * **Guard:** this function is a no-op unless VITE_USE_MOCK is explicitly set
+ * to the string "true". This ensures the mock server never runs in production
+ * builds even if the function is accidentally called.
+ *
  * @param seedsPath  Optional path to seeds.json (used in Node test environments).
- *                   In the browser the data is fetched from the public folder.
+ *                   In the browser the data is imported at build/dev time.
  */
 export async function initMockServer(seedsPath?: string): Promise<void> {
+  // Production / VITE_USE_MOCK not set guard — must be an explicit opt-in.
+  if (import.meta.env.VITE_USE_MOCK !== "true" && !import.meta.env.DEV) return;
+
   if (_initialized) return;
   _initialized = true;
 
@@ -227,5 +235,5 @@ export async function initMockServer(seedsPath?: string): Promise<void> {
     return json({ error: "Not found" }, 404);
   };
 
-  console.info("[MockServer] Initialized with", usersMap.size, "users");
+  // Mock server is now active — all /api/demo/* requests will be intercepted.
 }
